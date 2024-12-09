@@ -1,10 +1,24 @@
+use serde::Serializer;
+
 use crate::{Error, Transaction, TransactionType};
+
+fn truncate_precision<S>(v: &f32, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    // 4 decimal places = 10^4
+    let y = (v * 10000.0).round() / 10000.0;
+    serializer.serialize_f32(y)
+}
 
 #[derive(Debug, Default, serde::Serialize, Clone, Copy, PartialEq)]
 pub struct AccountState {
     client: u16,
+    #[serde(serialize_with = "truncate_precision")]
     available: f32,
+    #[serde(serialize_with = "truncate_precision")]
     held: f32,
+    #[serde(serialize_with = "truncate_precision")]
     total: f32,
     locked: bool,
 }
