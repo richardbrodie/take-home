@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::env;
 use std::fs::File;
 
 use csv::{Trim, Writer};
@@ -31,17 +32,33 @@ enum TransactionType {
 enum Error {
     InsufficientBalance,
     IncorrectAmount,
+    MissingAmount,
+    IncorrectArguments,
 }
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", &self)
+    }
+}
+impl std::error::Error for Error {}
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 2 {
+        return Err(Box::new(Error::IncorrectArguments));
+    }
+
+    // start reading input
+    let input_file = &args[1];
+    let file = File::open(input_file)?;
+    let mut rdr = csv::ReaderBuilder::new().trim(Trim::All).from_reader(file);
+
     // initialize account "database"
     let mut clients: HashMap<u16, Account> = HashMap::new();
 
-    // start reading input
-    let file = File::open("data/transactions.csv").unwrap();
-    let mut rdr = csv::ReaderBuilder::new().trim(Trim::All).from_reader(file);
+    // start parsing transactions
     for row in rdr.deserialize() {
-        let r: Transaction = row.unwrap();
+        let r: Transaction = row?;
         let a = clients.entry(r.client).or_insert(Account::new(r.client));
 
         if let Err(e) = a.process(&r) {
@@ -50,10 +67,11 @@ fn main() {
     }
 
     // write calculated account states
-    let mut wtr = Writer::from_writer(vec![]);
+    let mut wtr = Writer::from_writer(std::io::stdout());
     for a in clients.values() {
-        wtr.serialize(a.state()).unwrap();
+        wtr.serialize(a.state())?;
     }
-    let data = String::from_utf8(wtr.into_inner().unwrap()).unwrap();
-    println!("{}", data);
+    wtr.flush()?;
+
+    Ok(())
 }

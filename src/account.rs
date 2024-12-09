@@ -19,7 +19,7 @@ impl From<&Transaction> for ProcessedTransaction {
     fn from(value: &Transaction) -> Self {
         Self {
             tx: value.tx,
-            amount: value.amount.unwrap(),
+            amount: value.amount.unwrap_or(0.0), // TODO: is this ok?
             latest_state: value.kind,
         }
     }
@@ -58,7 +58,7 @@ impl Account {
     pub fn process(&mut self, cur_tx: &Transaction) -> Result<(), Error> {
         match cur_tx.kind {
             TransactionType::Deposit => {
-                let am = cur_tx.amount.unwrap();
+                let am = cur_tx.amount.ok_or(Error::MissingAmount)?;
                 if am <= 0.0 {
                     return Err(Error::IncorrectAmount);
                 }
@@ -66,7 +66,7 @@ impl Account {
                 self.history.push(cur_tx.into());
             }
             TransactionType::Withdrawal => {
-                let am = cur_tx.amount.unwrap();
+                let am = cur_tx.amount.ok_or(Error::MissingAmount)?;
                 if am <= 0.0 {
                     return Err(Error::IncorrectAmount);
                 }
