@@ -139,3 +139,67 @@ impl Account {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{Transaction, TransactionType};
+
+    use super::Account;
+
+    fn transaction(t: TransactionType, a: f32, c: u16, tx: u32) -> Transaction {
+        Transaction {
+            kind: t,
+            amount: Some(a),
+            client: c,
+            tx,
+        }
+    }
+
+    #[test]
+    fn single_deposit() {
+        let mut a = Account::new(0);
+        let t = transaction(TransactionType::Deposit, 5.0, 0, 0);
+        assert_eq!(a.available(), 0.0);
+        let r = a.process(&t);
+        assert!(r.is_ok());
+        assert_eq!(a.available(), 5.0)
+    }
+
+    #[test]
+    fn single_witdrawal() {
+        let mut a = Account::new(0);
+        let t = transaction(TransactionType::Withdrawal, 5.0, 0, 0);
+        assert_eq!(a.available(), 0.0);
+        let r = a.process(&t);
+        assert!(r.is_err());
+        assert_eq!(a.available(), 0.0);
+    }
+
+    #[test]
+    fn deposit_then_witdrawal() {
+        let mut a = Account::new(0);
+        let ts = vec![
+            transaction(TransactionType::Deposit, 5.0, 0, 0),
+            transaction(TransactionType::Withdrawal, 3.0, 0, 0),
+        ];
+        for t in ts {
+            let r = a.process(&t);
+            assert!(r.is_ok());
+        }
+        assert_eq!(a.available(), 2.0);
+    }
+
+    #[test]
+    fn negative_amounts() {
+        let mut a = Account::new(0);
+        let ts = vec![
+            transaction(TransactionType::Deposit, -5.0, 0, 0),
+            transaction(TransactionType::Withdrawal, -3.0, 0, 0),
+        ];
+        for t in ts {
+            let r = a.process(&t);
+            assert!(r.is_err());
+        }
+        assert_eq!(a.available(), 0.0);
+    }
+}
