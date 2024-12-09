@@ -146,10 +146,10 @@ mod tests {
 
     use super::Account;
 
-    fn transaction(t: TransactionType, a: f32, c: u16, tx: u32) -> Transaction {
+    fn transaction(t: TransactionType, a: Option<f32>, c: u16, tx: u32) -> Transaction {
         Transaction {
             kind: t,
-            amount: Some(a),
+            amount: a,
             client: c,
             tx,
         }
@@ -158,7 +158,7 @@ mod tests {
     #[test]
     fn single_deposit() {
         let mut a = Account::new(0);
-        let t = transaction(TransactionType::Deposit, 5.0, 0, 0);
+        let t = transaction(TransactionType::Deposit, Some(5.0), 0, 0);
         assert_eq!(a.available(), 0.0);
         let r = a.process(&t);
         assert!(r.is_ok());
@@ -168,7 +168,7 @@ mod tests {
     #[test]
     fn single_witdrawal() {
         let mut a = Account::new(0);
-        let t = transaction(TransactionType::Withdrawal, 5.0, 0, 0);
+        let t = transaction(TransactionType::Withdrawal, Some(5.0), 0, 0);
         assert_eq!(a.available(), 0.0);
         let r = a.process(&t);
         assert!(r.is_err());
@@ -179,8 +179,8 @@ mod tests {
     fn deposit_then_witdrawal() {
         let mut a = Account::new(0);
         let ts = vec![
-            transaction(TransactionType::Deposit, 5.0, 0, 0),
-            transaction(TransactionType::Withdrawal, 3.0, 0, 0),
+            transaction(TransactionType::Deposit, Some(5.0), 0, 0),
+            transaction(TransactionType::Withdrawal, Some(3.0), 0, 0),
         ];
         for t in ts {
             let r = a.process(&t);
@@ -193,13 +193,28 @@ mod tests {
     fn negative_amounts() {
         let mut a = Account::new(0);
         let ts = vec![
-            transaction(TransactionType::Deposit, -5.0, 0, 0),
-            transaction(TransactionType::Withdrawal, -3.0, 0, 0),
+            transaction(TransactionType::Deposit, Some(-5.0), 0, 0),
+            transaction(TransactionType::Withdrawal, Some(-3.0), 0, 0),
         ];
         for t in ts {
             let r = a.process(&t);
             assert!(r.is_err());
         }
         assert_eq!(a.available(), 0.0);
+    }
+
+    #[test]
+    fn dispute() {
+        let mut a = Account::new(0);
+        let ts = vec![
+            transaction(TransactionType::Deposit, Some(5.0), 0, 0),
+            transaction(TransactionType::Deposit, Some(5.0), 0, 1),
+            transaction(TransactionType::Dispute, Some(0.0), 0, 0),
+        ];
+        for t in ts {
+            let r = a.process(&t);
+            assert!(r.is_ok());
+        }
+        assert_eq!(a.available(), 5.0);
     }
 }
