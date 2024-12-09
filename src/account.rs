@@ -1,6 +1,6 @@
 use crate::{Error, Transaction, TransactionType};
 
-#[derive(Debug, Default, serde::Serialize, Clone, Copy)]
+#[derive(Debug, Default, serde::Serialize, Clone, Copy, PartialEq)]
 pub struct AccountState {
     client: u16,
     available: f32,
@@ -142,6 +142,7 @@ impl Account {
 
 #[cfg(test)]
 mod tests {
+    use crate::account::AccountState;
     use crate::{Transaction, TransactionType};
 
     use super::Account;
@@ -152,6 +153,15 @@ mod tests {
             amount: a,
             client: c,
             tx,
+        }
+    }
+    fn state(c: u16, a: f32, h: f32, t: f32, l: bool) -> AccountState {
+        AccountState {
+            client: c,
+            available: a,
+            held: h,
+            total: t,
+            locked: l,
         }
     }
 
@@ -209,12 +219,50 @@ mod tests {
         let ts = vec![
             transaction(TransactionType::Deposit, Some(5.0), 0, 0),
             transaction(TransactionType::Deposit, Some(5.0), 0, 1),
-            transaction(TransactionType::Dispute, Some(0.0), 0, 0),
+            transaction(TransactionType::Dispute, None, 0, 0),
         ];
         for t in ts {
             let r = a.process(&t);
             assert!(r.is_ok());
         }
-        assert_eq!(a.available(), 5.0);
+        assert_eq!(a.state(), state(0, 5.0, 5.0, 10.0, false));
+    }
+
+    #[test]
+    fn resolve() {
+        let mut a = Account::new(0);
+        let ts = vec![
+            transaction(TransactionType::Deposit, Some(5.0), 0, 0),
+            transaction(TransactionType::Deposit, Some(5.0), 0, 1),
+            transaction(TransactionType::Dispute, None, 0, 0),
+            transaction(TransactionType::Deposit, Some(5.0), 0, 2),
+        ];
+        for t in ts {
+            let r = a.process(&t);
+            assert!(r.is_ok());
+        }
+        assert_eq!(a.state(), state(0, 10.0, 5.0, 15.0, false));
+
+        let _ = a.process(&transaction(TransactionType::Resolve, None, 0, 0));
+        assert_eq!(a.state(), state(0, 15.0, 0.0, 15.0, false));
+    }
+
+    #[test]
+    fn chargeback() {
+        let mut a = Account::new(0);
+        let ts = vec![
+            transaction(TransactionType::Deposit, Some(5.0), 0, 0),
+            transaction(TransactionType::Deposit, Some(5.0), 0, 1),
+            transaction(TransactionType::Dispute, None, 0, 0),
+            transaction(TransactionType::Deposit, Some(5.0), 0, 2),
+        ];
+        for t in ts {
+            let r = a.process(&t);
+            assert!(r.is_ok());
+        }
+        assert_eq!(a.state(), state(0, 10.0, 5.0, 15.0, false));
+
+        let _ = a.process(&transaction(TransactionType::Chargeback, None, 0, 0));
+        assert_eq!(a.state(), state(0, 10.0, 0.0, 10.0, true));
     }
 }
