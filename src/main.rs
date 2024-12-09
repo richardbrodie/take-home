@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 
 use csv::{Trim, Writer};
@@ -25,20 +26,31 @@ enum TransactionType {
     Chargeback,
 }
 
+#[derive(Debug)]
+enum Error {
+    InsufficientBalance,
+    IncorrectAmount,
+}
+
 fn main() {
+    // initialize account "database"
+    let mut clients: HashMap<u16, Account> = HashMap::new();
+
+    // start reading input
     let file = File::open("data/transactions.csv").unwrap();
     let mut rdr = csv::ReaderBuilder::new().trim(Trim::All).from_reader(file);
     for row in rdr.deserialize() {
         let r: Transaction = row.unwrap();
-        println!(
-            "|{:?}| id: {}, client: {}, amount: {}",
-            r.kind, r.tx, r.client, r.amount
-        );
+        let a = clients.entry(r.client).or_insert(Account::new(r.client));
+
+        if let Err(e) = a.process(r) {
+            // handle error
+        }
     }
 
+    // write calculated account states
     let mut wtr = Writer::from_writer(vec![]);
-    for i in 0..5 {
-        let a = Account::new(i);
+    for a in clients.values() {
         wtr.serialize(a.state()).unwrap();
     }
     let data = String::from_utf8(wtr.into_inner().unwrap()).unwrap();
