@@ -13,10 +13,11 @@ struct Transaction {
     kind: TransactionType,
     client: u16,
     tx: u32,
-    amount: f32,
+    #[serde(default)]
+    amount: Option<f32>,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, Clone, Copy, PartialEq)]
 #[serde(rename_all = "lowercase")]
 enum TransactionType {
     Deposit,
@@ -43,8 +44,8 @@ fn main() {
         let r: Transaction = row.unwrap();
         let a = clients.entry(r.client).or_insert(Account::new(r.client));
 
-        if let Err(e) = a.process(r) {
-            // handle error
+        if let Err(e) = a.process(&r) {
+            tracing::error!("failed transaction: {:?}: {:?}", r, e);
         }
     }
 
