@@ -1,6 +1,6 @@
 use std::fs::File;
 
-use csv::Trim;
+use csv::{Trim, Writer};
 
 #[derive(Debug, serde::Deserialize)]
 struct Transaction {
@@ -21,6 +21,15 @@ enum TransactionType {
     Chargeback,
 }
 
+#[derive(Debug, Default, serde::Serialize, Clone, Copy)]
+struct AccountState {
+    client: u16,
+    available: f32,
+    held: f32,
+    total: f32,
+    locked: bool,
+}
+
 fn main() {
     let file = File::open("data/transactions.csv").unwrap();
     let mut rdr = csv::ReaderBuilder::new().trim(Trim::All).from_reader(file);
@@ -31,4 +40,12 @@ fn main() {
             r.kind, r.tx, r.client, r.amount
         );
     }
+
+    let mut wtr = Writer::from_writer(vec![]);
+    let accs = [AccountState::default(); 5];
+    for a in accs {
+        wtr.serialize(a).unwrap();
+    }
+    let data = String::from_utf8(wtr.into_inner().unwrap()).unwrap();
+    println!("{}", data);
 }
