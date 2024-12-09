@@ -1,0 +1,9 @@
+[package]
+name = "take-home-test"
+authors = ["Richard Brodie <richard@radagast.nu>"]
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+csv = "1.3.1"
+serde = { version = "1.0.215", default-features = false, features = ["derive"] }
